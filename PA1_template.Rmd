@@ -1,0 +1,119 @@
+PA1 Template
+=============
+
+Here we're going to load the data.
+
+```{r}
+amd <- read.csv('activity.csv')
+amd$date <- as.Date(amd$date)
+summary(tapply(amd$steps, amd$date, sum))
+```
+
+Now that the data is loaded let's see the distribution of the data.
+
+```{r, echo=FALSE}
+hist(tapply(amd$steps, amd$date, sum),
+     main='Distribution of Steps Taken Each Day',
+     freq=FALSE, xlab='Steps', ylab='')
+```
+
+Now let's see the average activity over time.
+
+```{r, echo=FALSE}
+amd$steps[is.na(amd$steps)] <- 0
+
+sum = 0
+avgsteps <- vector()
+avgsteps[1] <- 0
+
+for (i in 2:nrow(amd)) {
+  sum = sum + amd$steps[i]
+  avgsteps = rbind(avgsteps, sum / i)
+}
+
+amd[,'avgsteps'] <- avgsteps
+amd[,'plottingint'] <- sapply(1:nrow(amd), function(x) (x-1)*5)
+
+plot(avgsteps ~ plottingint, amd, type = 'l', main='Average Number of Steps Over Time',
+     xlab='5-Minute Intervals', ylab='Average Steps')
+```
+
+Now let's see which 5-minute interval had the most steps on average.
+
+```{r}
+intervals <- tapply(amd$steps, amd$interval, mean)
+amd$interval[max(intervals)]
+```
+
+After poking through the data, you will noticed there are quite a few missing values.
+
+```{r}
+mydf <- read.csv('activity.csv')
+mydf$date <- as.Date(mydf$date)
+missingvalues <- mydf[is.na(mydf$steps),]
+nrow(missingvalues) #2304 NA values
+```
+
+To replace the missing values let's set them equal to the average number of steps
+up to that interval for that day.
+
+```{r}
+missingvalues <- is.na(mydf$steps)
+
+mydf$steps[is.na(mydf$steps)] <- 0
+for (i in 1:nrow(mydf)) {
+  if (mydf$interval[i] == 0) {
+    counter = 1
+    sum = mydf$steps[i]
+    mydf$avgsteps[counter] = sum
+  }
+  else {
+    counter = counter + 1
+    sum = sum + mydf$steps[i]
+    mydf$avgsteps[i] = sum / counter
+  }
+}
+
+mydf$steps[missingvalues] <- mydf$avgsteps[missingvalues]
+
+summary(tapply(mydf$steps, mydf$date, sum))
+```
+
+Here's the distribution of the processed data.
+
+```{r, echo=FALSE}
+hist(tapply(mydf$steps, mydf$date, sum),
+     main='Adjusted Distribution of Steps Taken Each Day',
+     freq=FALSE, xlab='Steps', ylab='')
+```
+
+Let's see how it compares to the original data.
+
+```{r}
+summary(tapply(amd$steps, amd$date, sum))
+```
+
+```{r, echo=FALSE}
+hist(tapply(amd$steps, amd$date, sum), main='Total Number of Steps Taken Each Day',
+     freq=FALSE)
+```
+
+Seems like the method to replace the missing data didn't skew the distribution much
+if at all.
+
+Lastly let's see the differences in activity between weekdays and weekends
+
+```{r, echo=FALSE}
+library(lattice)
+
+dayorend <- weekdays(mydf$date)
+
+dayorend[weekdays(mydf$date) != c('Saturday','Sunday')] <- 'Weekday'
+dayorend[weekdays(mydf$date) == c('Saturday','Sunday')] <- 'Weekend'
+
+mydf[,'dayorend'] <- dayorend
+mydf[,'plottingint'] <- sapply(1:nrow(mydf), function(x) (x-1)*5)
+
+xyplot(avgsteps ~ plottingint | dayorend, data = mydf, type ='l', layout=c(1,2),
+       xlab='5-Minute Intervals', ylab='Average Steps')
+```
